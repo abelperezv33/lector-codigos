@@ -1,66 +1,169 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Lector de Códigos</title>
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <title>Lector de Códigos de Barra</title>
+  <script type="module">
+    import { BrowserMultiFormatReader } from "https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm";
+
+    const codeReader = new BrowserMultiFormatReader();
+    const video = document.getElementById('video');
+    const lista = document.getElementById('lista-codigos');
+    const camSelect = document.getElementById('cam-select');
+    const codigos = new Set();
+
+    async function iniciarScanner(deviceId) {
+      try {
+        codeReader.reset();
+        codeReader.decodeFromVideoDevice(deviceId, video, (result, err) => {
+          if (result) {
+            const codigo = result.getText();
+            if (!codigos.has(codigo)) {
+              codigos.add(codigo);
+              const li = document.createElement('li');
+              li.textContent = codigo;
+              lista.appendChild(li);
+            }
+          }
+        });
+      } catch (error) {
+        alert("Error accediendo a la cámara: " + error);
+      }
+    }
+
+    async function cargarCamaras() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+      camSelect.innerHTML = "";
+      videoDevices.forEach((device, index) => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.textContent = device.label || `Cámara ${index + 1}`;
+        camSelect.appendChild(option);
+      });
+
+      if (videoDevices.length > 0) {
+        camSelect.value = videoDevices[0].deviceId;
+        iniciarScanner(videoDevices[0].deviceId);
+      }
+    }
+
+    camSelect?.addEventListener('change', () => {
+      iniciarScanner(camSelect.value);
+    });
+
+    window.onload = cargarCamaras;
+
+    window.copiarLista = () => {
+      const texto = Array.from(codigos).join("\n");
+      navigator.clipboard.writeText(texto).then(() => alert("Lista copiada"));
+    };
+
+    window.borrarLista = () => {
+      codigos.clear();
+      lista.innerHTML = "";
+    };
+
+    window.exportarLista = () => {
+      const blob = new Blob([Array.from(codigos).join("\n")], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "codigos.txt";
+      link.click();
+    };
+
+    window.tomarFoto = () => {
+      if (!video.srcObject) return alert("No hay video activo");
+
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const codigo = Array.from(codigos).at(-1) || 'sin-codigo';
+      const fecha = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      const nombre = `${codigo}-${fecha}.png`;
+
+      canvas.toBlob(blob => {
+        const enlace = document.createElement("a");
+        enlace.href = URL.createObjectURL(blob);
+        enlace.download = nombre;
+        enlace.click();
+      });
+    };
+  </script>
   <style>
     body {
-      margin: 0;
-      background-color: #000;
-      color: white;
       font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
+      margin: 0;
+      padding: 0;
+      background: #f0f0f0;
     }
+
+    #contenedor {
+      padding: 1em;
+      max-width: 600px;
+      margin: auto;
+    }
+
     video {
       width: 100%;
       height: auto;
-      flex: 1;
+      border: 2px solid #444;
+      border-radius: 8px;
     }
-    #output {
-      background-color: #111;
-      padding: 10px;
+
+    ul {
+      margin-top: 1em;
+      background: white;
+      padding: 1em;
+      border-radius: 8px;
+      max-height: 200px;
       overflow-y: auto;
-      max-height: 150px;
     }
-    #footer {
+
+    button, select {
+      margin-top: 1em;
+      margin-right: 10px;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #007BFF;
+      color: white;
+      font-size: 1em;
+    }
+
+    select {
+      background: white;
+      color: #333;
+      border: 1px solid #ccc;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    footer {
       text-align: center;
-      font-size: 10px;
-      opacity: 0.5;
-      padding: 5px;
+      font-size: 0.75em;
+      margin-top: 1em;
+      color: #666;
     }
   </style>
 </head>
 <body>
-  <video id="video" autoplay></video>
-  <div id="output"></div>
-  <div id="footer">Programado por Abel Pérez, 2025</div>
-
-  <script>
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    const videoElement = document.getElementById('video');
-    const outputElement = document.getElementById('output');
-    const scannedCodes = new Set();
-
-    codeReader
-      .listVideoInputDevices()
-      .then(videoInputDevices => {
-        const selectedDeviceId = videoInputDevices.length > 1 ? videoInputDevices[1].deviceId : videoInputDevices[0].deviceId;
-        codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
-          if (result) {
-            const code = result.getText();
-            if (!scannedCodes.has(code)) {
-              scannedCodes.add(code);
-              const div = document.createElement('div');
-              div.textContent = code;
-              outputElement.appendChild(div);
-            }
-          }
-        });
-      })
-      .catch(err => console.error(err));
-  </script>
+  <div id="contenedor">
+    <h2>Escanea códigos de barra</h2>
+    <select id="cam-select"></select>
+    <video id="video" playsinline autoplay></video>
+    <ul id="lista-codigos"></ul>
+    <button onclick="copiarLista()">Copiar</button>
+    <button onclick="borrarLista()">Borrar</button>
+    <button onclick="exportarLista()">Exportar</button>
+    <button onclick="tomarFoto()">Tomar Foto</button>
+    <footer>Programado por Abel Perez. 2025</footer>
+  </div>
 </body>
 </html>
