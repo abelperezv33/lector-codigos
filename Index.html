@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Lector de Códigos de Barra</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+  <h1>📦 Escáner de Código de Barras</h1>
+  <div id="reader" style="width: 300px;"></div>
+  <p id="resultado">Esperando escaneo...</p>
+
+  <script>
+    function onScanSuccess(decodedText, decodedResult) {
+      document.getElementById('resultado').innerText = "✅ Código detectado: " + decodedText;
+      html5QrcodeScanner.clear(); // Detiene el escaneo si quieres
+    }
+
+    function onScanFailure(error) {
+      // Silencio errores de escaneo
+    }
+
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader", 
+      { fps: 10, qrbox: 250, formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.UPC_A] },
+      false);
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+  </script>
+</body>
+</html>
