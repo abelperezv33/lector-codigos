@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📦 Lector de Códigos</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    video {
+      width: 100%;
+      max-width: 400px;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+    }
+    canvas {
+      display: none;
+    }
+    #output {
+      margin-top: 20px;
+      max-width: 400px;
+      width: 100%;
+    }
+    #output ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    #output li {
+      margin-bottom: 5px;
+    }
+    footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: gray;
+    }
+  </style>
+</head>
+<body>
+  <h1>📦 Lector de Códigos</h1>
+
+  <label><input type="checkbox" id="enableCount" /> Activar modo conteo</label>
+  <br/>
+  <video id="video" autoplay></video>
+  <canvas id="canvas"></canvas>
+  <br />
+  <button onclick="downloadData()">Descargar lista</button>
+  <button onclick="resetList()">Resetear lista</button>
+
+  <div id="output">
+    <h3>Códigos escaneados:</h3>
+    <ul id="codeList"></ul>
+  </div>
+
+  <footer>Programado por Abel Perez. 2025</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const codeList = document.getElementById("codeList");
+    const enableCount = document.getElementById("enableCount");
+
+    let scannedCodes = [];
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then((stream) => {
+      video.srcObject = stream;
+    });
+
+    function tick() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code) {
+          handleCode(code.data);
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    function handleCode(code) {
+      const found = scannedCodes.find(item => item.code === code);
+      if (found) return;
+
+      if (enableCount.checked) {
+        const quantity = prompt("Cantidad para el código: " + code);
+        if (quantity !== null && quantity !== "") {
+          scannedCodes.push({ code, quantity: parseInt(quantity, 10) });
+        }
+      } else {
+        scannedCodes.push({ code, quantity: 1 });
+      }
+
+      renderList();
+    }
+
+    function renderList() {
+      codeList.innerHTML = "";
+      scannedCodes.forEach(({ code, quantity }) => {
+        const li = document.createElement("li");
+        li.textContent = `${code} | ${quantity}`;
+        codeList.appendChild(li);
+      });
+    }
+
+    function downloadData() {
+      const csvContent = scannedCodes.map(({ code, quantity }) => `${code},${quantity}`).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "lista_codigos.csv";
+      link.click();
+    }
+
+    function resetList() {
+      if (confirm("¿Seguro que deseas borrar toda la lista de códigos?")) {
+        scannedCodes = [];
+        renderList();
+      }
+    }
+  </script>
+</body>
+</html>
