@@ -1,29 +1,44 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Lector de Códigos de Barra</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <title>Lector de Códigos</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-  <h1>📦 Escáner de Código de Barras</h1>
+  <h1>Lector de Códigos de Barra</h1>
   <div id="reader" style="width: 300px;"></div>
-  <p id="resultado">Esperando escaneo...</p>
+  <div id="result"></div>
 
   <script>
     function onScanSuccess(decodedText, decodedResult) {
-      document.getElementById('resultado').innerText = "✅ Código detectado: " + decodedText;
-      html5QrcodeScanner.clear(); // Detiene el escaneo si quieres
+      document.getElementById('result').innerText = `Código detectado: ${decodedText}`;
     }
 
-    function onScanFailure(error) {
-      // Silencio errores de escaneo
+    function onScanError(errorMessage) {
+      // console.log(errorMessage);
     }
 
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-      "reader", 
-      { fps: 10, qrbox: 250, formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.UPC_A] },
-      false);
-    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    const html5QrCode = new Html5Qrcode("reader");
+
+    Html5Qrcode.getCameras().then(cameras => {
+      if (cameras && cameras.length) {
+        // Usar la cámara trasera (última generalmente)
+        const backCamera = cameras.find(cam => cam.label.toLowerCase().includes('back')) || cameras[0];
+
+        html5QrCode.start(
+          backCamera.id,
+          {
+            fps: 10,
+            qrbox: 250
+          },
+          onScanSuccess,
+          onScanError
+        );
+      }
+    }).catch(err => {
+      console.error("No se pudieron obtener las cámaras", err);
+    });
   </script>
 </body>
 </html>
