@@ -1,132 +1,189 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>📦 Lector de Códigos</title>
+  <script type="module">
+    import { BrowserMultiFormatReader } from "https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm";
+
+    const codeReader = new BrowserMultiFormatReader();
+    const video = document.getElementById('video');
+    const lista = document.getElementById('lista-codigos');
+    const camSelect = document.getElementById('cam-select');
+    const codigos = new Map();
+    const beep = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+
+    async function iniciarScanner(deviceId) {
+      try {
+        codeReader.reset();
+        codeReader.decodeFromVideoDevice(deviceId, video, async (result, err) => {
+          if (result) {
+            const codigo = result.getText();
+            if (!codigos.has(codigo)) {
+              let cantidad = 1;
+              if (document.getElementById('modo-conteo').checked) {
+                cantidad = parseInt(prompt("Cantidad para el código: " + codigo), 10);
+                if (isNaN(cantidad) || cantidad < 1) return;
+              }
+              codigos.set(codigo, cantidad);
+              agregarCodigoLista(codigo, cantidad);
+              flashPantalla();
+              beep.play();
+            }
+          }
+        });
+      } catch (error) {
+        alert("Error accediendo a la cámara: " + error);
+      }
+    }
+
+    function agregarCodigoLista(codigo, cantidad) {
+      const li = document.createElement('li');
+      li.textContent = `${codigo} | ${cantidad}`;
+      lista.appendChild(li);
+    }
+
+    function flashPantalla() {
+      const original = document.body.style.background;
+      document.body.style.background = '#b6ffb6';
+      setTimeout(() => document.body.style.background = original, 150);
+    }
+
+    async function cargarCamaras() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+      camSelect.innerHTML = "";
+      videoDevices.forEach((device, index) => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.textContent = device.label || `Cámara ${index + 1}`;
+        camSelect.appendChild(option);
+      });
+
+      if (videoDevices.length > 0) {
+        camSelect.value = videoDevices[0].deviceId;
+        iniciarScanner(videoDevices[0].deviceId);
+      }
+    }
+
+    camSelect?.addEventListener('change', () => {
+      iniciarScanner(camSelect.value);
+    });
+
+    window.onload = cargarCamaras;
+
+    window.copiarLista = () => {
+      const texto = Array.from(codigos.entries()).map(([c, q]) => `${c} | ${q}`).join("\n");
+      navigator.clipboard.writeText(texto).then(() => alert("Lista copiada"));
+    };
+
+    window.borrarLista = () => {
+      if (confirm("¿Seguro que deseas borrar toda la lista?")) {
+        codigos.clear();
+        lista.innerHTML = "";
+      }
+    };
+
+    window.exportarLista = () => {
+      const blob = new Blob([Array.from(codigos.entries()).map(([c, q]) => `${c} | ${q}`).join("\n")], { type: "text/plain" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "codigos.txt";
+      link.click();
+    };
+
+    window.tomarFoto = () => {
+      if (!video.srcObject) return alert("No hay video activo");
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const codigo = Array.from(codigos.keys()).at(-1) || 'sin-codigo';
+      const fecha = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+      const nombre = `${codigo}-${fecha}.png`;
+
+      canvas.toBlob(blob => {
+        const enlace = document.createElement("a");
+        enlace.href = URL.createObjectURL(blob);
+        enlace.download = nombre;
+        enlace.click();
+      });
+    };
+  </script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f0f0;
     }
+
+    #contenedor {
+      padding: 1em;
+      max-width: 600px;
+      margin: auto;
+    }
+
     video {
       width: 100%;
-      max-width: 400px;
+      height: auto;
+      border: 2px solid #444;
+      border-radius: 8px;
+    }
+
+    ul {
+      margin-top: 1em;
+      background: white;
+      padding: 1em;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    button, select, label {
+      margin-top: 1em;
+      margin-right: 10px;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #007BFF;
+      color: white;
+      font-size: 1em;
+    }
+
+    select {
+      background: white;
+      color: #333;
       border: 1px solid #ccc;
-      margin-bottom: 10px;
     }
-    canvas {
-      display: none;
+
+    button:hover {
+      background: #0056b3;
     }
-    #output {
-      margin-top: 20px;
-      max-width: 400px;
-      width: 100%;
-    }
-    #output ul {
-      list-style-type: none;
-      padding: 0;
-    }
-    #output li {
-      margin-bottom: 5px;
-    }
+
     footer {
-      margin-top: 40px;
-      font-size: 12px;
-      color: gray;
+      text-align: center;
+      font-size: 0.75em;
+      margin-top: 1em;
+      color: #666;
     }
   </style>
 </head>
 <body>
-  <h1>📦 Lector de Códigos</h1>
-
-  <label><input type="checkbox" id="enableCount" /> Activar modo conteo</label>
-  <br/>
-  <video id="video" autoplay></video>
-  <canvas id="canvas"></canvas>
-  <br />
-  <button onclick="downloadData()">Descargar lista</button>
-  <button onclick="resetList()">Resetear lista</button>
-
-  <div id="output">
-    <h3>Códigos escaneados:</h3>
-    <ul id="codeList"></ul>
+  <div id="contenedor">
+    <h2>📦 Escanea códigos de barra</h2>
+    <label><input type="checkbox" id="modo-conteo"> Activar conteo</label>
+    <select id="cam-select"></select>
+    <video id="video" playsinline autoplay></video>
+    <ul id="lista-codigos"></ul>
+    <button onclick="copiarLista()">Copiar</button>
+    <button onclick="borrarLista()">Borrar</button>
+    <button onclick="exportarLista()">Exportar</button>
+    <button onclick="tomarFoto()">Tomar Foto</button>
+    <footer>Programado por Abel Perez. 2025</footer>
   </div>
-
-  <footer>Programado por Abel Perez. 2025</footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-  <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-    const codeList = document.getElementById("codeList");
-    const enableCount = document.getElementById("enableCount");
-
-    let scannedCodes = [];
-
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then((stream) => {
-      video.srcObject = stream;
-    });
-
-    function tick() {
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.height = video.videoHeight;
-        canvas.width = video.videoWidth;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-        if (code) {
-          handleCode(code.data);
-        }
-      }
-      requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-
-    function handleCode(code) {
-      const found = scannedCodes.find(item => item.code === code);
-      if (found) return;
-
-      if (enableCount.checked) {
-        const quantity = prompt("Cantidad para el código: " + code);
-        if (quantity !== null && quantity !== "") {
-          scannedCodes.push({ code, quantity: parseInt(quantity, 10) });
-        }
-      } else {
-        scannedCodes.push({ code, quantity: 1 });
-      }
-
-      renderList();
-    }
-
-    function renderList() {
-      codeList.innerHTML = "";
-      scannedCodes.forEach(({ code, quantity }) => {
-        const li = document.createElement("li");
-        li.textContent = `${code} | ${quantity}`;
-        codeList.appendChild(li);
-      });
-    }
-
-    function downloadData() {
-      const csvContent = scannedCodes.map(({ code, quantity }) => `${code},${quantity}`).join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "lista_codigos.csv";
-      link.click();
-    }
-
-    function resetList() {
-      if (confirm("¿Seguro que deseas borrar toda la lista de códigos?")) {
-        scannedCodes = [];
-        renderList();
-      }
-    }
-  </script>
 </body>
 </html>
