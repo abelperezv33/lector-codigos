@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Lector de Códigos</title>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <style>
+    body {
+      margin: 0;
+      background-color: #000;
+      color: white;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    video {
+      width: 100%;
+      height: auto;
+      flex: 1;
+    }
+    #output {
+      background-color: #111;
+      padding: 10px;
+      overflow-y: auto;
+      max-height: 150px;
+    }
+    #footer {
+      text-align: center;
+      font-size: 10px;
+      opacity: 0.5;
+      padding: 5px;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay></video>
+  <div id="output"></div>
+  <div id="footer">Programado por Abel Pérez, 2025</div>
+
+  <script>
+    const codeReader = new ZXing.BrowserMultiFormatReader();
+    const videoElement = document.getElementById('video');
+    const outputElement = document.getElementById('output');
+    const scannedCodes = new Set();
+
+    codeReader
+      .listVideoInputDevices()
+      .then(videoInputDevices => {
+        const selectedDeviceId = videoInputDevices.length > 1 ? videoInputDevices[1].deviceId : videoInputDevices[0].deviceId;
+        codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
+          if (result) {
+            const code = result.getText();
+            if (!scannedCodes.has(code)) {
+              scannedCodes.add(code);
+              const div = document.createElement('div');
+              div.textContent = code;
+              outputElement.appendChild(div);
+            }
+          }
+        });
+      })
+      .catch(err => console.error(err));
+  </script>
+</body>
+</html>
