@@ -1,43 +1,83 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lector de Códigos</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      color: #fff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.5em;
+      padding: 0.5em;
+      background: #222;
+      margin: 0;
+    }
+
+    #reader {
+      flex: 1;
+      width: 100%;
+    }
+
+    #result {
+      text-align: center;
+      padding: 1em;
+      background: #111;
+      font-size: 1.2em;
+    }
+  </style>
 </head>
 <body>
-  <h1>Lector de Códigos de Barra</h1>
-  <div id="reader" style="width: 300px;"></div>
-  <div id="result"></div>
+  <h1>Lector de Códigos</h1>
+  <div id="reader"></div>
+  <div id="result">Apunta al código...</div>
 
   <script>
+    const html5QrCode = new Html5Qrcode("reader");
+
     function onScanSuccess(decodedText, decodedResult) {
       document.getElementById('result').innerText = `Código detectado: ${decodedText}`;
     }
 
     function onScanError(errorMessage) {
-      // console.log(errorMessage);
+      // Silenciar errores frecuentes de escaneo
     }
-
-    const html5QrCode = new Html5Qrcode("reader");
 
     Html5Qrcode.getCameras().then(cameras => {
       if (cameras && cameras.length) {
-        // Usar la cámara trasera (última generalmente)
-        const backCamera = cameras.find(cam => cam.label.toLowerCase().includes('back')) || cameras[0];
-
+        const backCam = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
         html5QrCode.start(
-          backCamera.id,
+          backCam.id,
           {
             fps: 10,
-            qrbox: 250
+            qrbox: { width: 300, height: 300 }, // puedes ajustar esto
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.QR_CODE,
+              Html5QrcodeSupportedFormats.EAN_13,
+              Html5QrcodeSupportedFormats.EAN_8,
+              Html5QrcodeSupportedFormats.UPC_A,
+              Html5QrcodeSupportedFormats.UPC_E,
+              Html5QrcodeSupportedFormats.CODE_128
+            ]
           },
           onScanSuccess,
           onScanError
         );
       }
     }).catch(err => {
-      console.error("No se pudieron obtener las cámaras", err);
+      document.getElementById('result').innerText = "Error al acceder a la cámara.";
+      console.error(err);
     });
   </script>
 </body>
